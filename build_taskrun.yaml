@@ -1,0 +1,12 @@
+apiVersion: tekton.dev/v1alpha1
+kind: TaskRun
+metadata:
+  name: template-spring-boot-build-task-run
+spec:
+  inputs:
+    resources:
+      - name: git-source
+        resourceRef:
+          name: template-spring-boot-git
+  taskRef:
+    name: template-spring-boot-build-task

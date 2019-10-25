@@ -1,0 +1,29 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: template-spring-boot-setup-task
+spec:
+  inputs:
+    resources:
+      - name: git-source
+        type: git
+  steps:
+    - name: setup-environment
+      image: node:11-stretch
+      workingdir: ${inputs.resources.git-source.path}
+      volumeMounts:
+        - name: setup-volume
+          mountPath: /tmp/setup-volume
+      command:
+        - /bin/bash
+      args:
+        - -c
+        - |
+          set -x
+          # Export project name, version, and build number to ./env-config
+          npm run env | grep "^npm_package_name" | sed "s/npm_package_name/IMAGE_NAME/g"  > ./env-config
+          npm run env | grep "^npm_package_version" | sed "s/npm_package_version/IMAGE_VERSION/g" >> ./env-config
+          cat ./env-config > /tmp/setup-volume/env-config
+  volumes:
+    - name: setup-volume
+      emptyDir: {}

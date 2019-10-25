@@ -1,0 +1,11 @@
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: template-spring-boot-git
+spec:
+  type: git
+  params:
+    - name: url
+      value: https://github.com/Hemankita/template-java-spring.git
+    - name: revision
+      value: master

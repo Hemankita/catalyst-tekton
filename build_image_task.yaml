@@ -1,0 +1,71 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: template-spring-boot-build-image-task
+spec:
+  inputs:
+    resources:
+      - name: git-source
+        type: git
+  steps:
+    - name: setup-environment
+      image: node:11-stretch
+      workingdir: ${inputs.resources.git-source.path}
+      volumeMounts:
+        - name: setup-volume
+          mountPath: /tmp/setup-volume
+      command:
+        - /bin/bash
+      args:
+        - -c
+        - |
+          set -x
+          # Export project name, version, and build number to ./env-config
+          npm run env | grep "^npm_package_name" | sed "s/npm_package_name/IMAGE_NAME/g"  > ./env-config
+          npm run env | grep "^npm_package_version" | sed "s/npm_package_version/IMAGE_VERSION/g" >> ./env-config
+          cat ./env-config > /tmp/setup-volume/env-config
+    - name: verify-environment
+      image: docker.io/garagecatalyst/ibmcloud-dev:1.0.8
+      workingdir: ${inputs.resources.git-source.path}
+      volumeMounts:
+        - name: setup-volume
+          mountPath: /tmp/setup-volume
+        - name: config-volume
+          mountPath: /config
+      command:
+        - /bin/bash
+      args:
+        - -c
+        - |
+          source /tmp/setup-volume/env-config
+          echo the value of IMAGE_VERSION is $IMAGE_VERSION
+          set -x
+          . ./env-config
+          if [[ -z "${IMAGE_NAME}" ]]; then
+            echo "IMAGE_NAME is required"
+            exit 1
+          fi
+          if [[ -z "${IMAGE_VERSION}" ]]; then
+            echo "IMAGE_VERSION is required"
+            exit 1
+          fi
+          if [[ -z "${REGISTRY_NAMESPACE}" ]]; then
+            echo "REGISTRY_NAMESPACE is required"
+            exit 1
+          fi
+          if [[ -z "${REGISTRY_URL}" ]]; then
+            echo "REGISTRY_URL is required"
+            exit 1
+          fi
+      env:
+      - name: REGISTRY_NAMESPACE
+        valueFrom:
+          configMapKeyRef:
+            name: ibmcloud-config
+            key: REGISTRY_NAMESPACE
+  volumes:
+    - name: setup-volume
+      emptyDir: {}
+    - name: config-volume
+      configMap:
+        name: "ibmcloud-config"
